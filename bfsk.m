@@ -10,7 +10,7 @@ t_sym = 0:1/fs:T_sym-1/fs;  % 单个符号的时间向量
 f0 = 20e3;          % 比特 0 对应的载波频率 20 kHz
 f1 = 40e3;          % 比特 1 对应的载波频率 40 kHz
 
-numSymbols = 10;   % 符号数
+numSymbols = 50;   % 符号数
 
 %% 生成随机比特序列
 data = randi([0, 1], 1, numSymbols);
