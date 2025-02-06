@@ -1,22 +1,22 @@
-%% BFSK 通信系统仿真
-% 清空工作区和命令窗口
+%% BFSK Communication System Simulation 
+% Clear workspace and command window
 clear; clc; close all;
 
-%% 参数设置
-fs = 192e3;         % 采样率 192 kHz
-T_sym = 1e-3;       % 每个符号时长 1 ms
-t_sym = 0:1/fs:T_sym-1/fs;  % 单个符号的时间向量
+%% Parameter Settings
+fs = 192e3;         % Sampling rate 192 kHz
+T_sym = 1e-3;       % Symbol duration 1 ms
+t_sym = 0:1/fs:T_sym-1/fs;  % Time vector for a single symbol
 
-f0 = 20e3;          % 比特 0 对应的载波频率 20 kHz
-f1 = 40e3;          % 比特 1 对应的载波频率 40 kHz
+f0 = 20e3;          % Carrier frequency for bit 0: 20 kHz
+f1 = 40e3;          % Carrier frequency for bit 1: 40 kHz
 
-numSymbols = 50;   % 符号数
+numSymbols = 50;   % Number of symbols
 
-%% 生成随机比特序列
+%% Generate Random Bit Sequence
 data = randi([0, 1], 1, numSymbols);
 
-%% BFSK 调制
-% 对每个比特，生成对应频率的正弦波，并将所有符号级联
+%% BFSK Modulation
+% Generate a sine wave for each bit corresponding to its frequency and concatenate all symbols
 tx_signal = [];
 for k = 1:numSymbols
     if data(k) == 0
@@ -27,49 +27,48 @@ for k = 1:numSymbols
     tx_signal = [tx_signal, sig];
 end
 
-%% 水声信道仿真
-% 水声信道一般具有多径效应，这里采用一个简单的多径模型
-% 例如，假设信道的脉冲响应包含三个路径：
-%  - 第一条直达路径，增益 = 1，无延时
-%  - 第二条路径，延时 2~3 个采样点，增益约为 0.6
-%  - 第三条路径，延时 7~8 个采样点，增益约为 0.3
-% 构造一个离散脉冲响应（单位冲激响应长度可以根据实际情况调整）
+%% Underwater Acoustic Channel Simulation
+% The underwater acoustic channel typically exhibits multipath effects. Here, we use a simple multipath model:
+%  - First direct path, gain = 1, no delay
+%  - Second path, delay of 2~3 samples, gain ≈ 0.6
+%  - Third path, delay of 7~8 samples, gain ≈ 0.3
+% Construct a discrete impulse response (length can be adjusted as needed)
 h = [1, zeros(1,2), 0.6, zeros(1,4), 0.3];
 
-% 通过滤波器模拟多径效应
+% Simulate multipath effects using a filter
 channel_signal = filter(h, 1, tx_signal);
 
-%% 加性噪声（AWGN）
-% 设定信噪比（SNR）为 20 dB（可根据需要修改）
-SNR_dB = 20;
+%% Additive Noise (AWGN)
+% Set signal-to-noise ratio (SNR) to 15 dB (modifiable as needed)
+SNR_dB = 15;
 rx_signal = awgn(channel_signal, SNR_dB, 'measured');
 
-%% BFSK 解调（FFT频谱分析）
-% 将接收信号按照每个符号的采样点数分段
-N_sym = length(t_sym);   % 每个符号的采样点数
+%% BFSK Demodulation (FFT Spectrum Analysis)
+% Segment the received signal based on the number of samples per symbol
+N_sym = length(t_sym);   % Number of samples per symbol
 rx_matrix = reshape(rx_signal, N_sym, []);
 
-% FFT 频率分辨率为 fs/N_sym = 192e3/192 = 1 kHz，
-% 因此：
-%   - 20 kHz 对应的 FFT bin 索引：index_f0 = 20 + 1 = 21
-%   - 40 kHz 对应的 FFT bin 索引：index_f1 = 40 + 1 = 41
+% FFT frequency resolution is fs/N_sym = 192e3/192 = 1 kHz,
+% Therefore:
+%   - FFT bin index for 20 kHz: index_f0 = 20 + 1 = 21
+%   - FFT bin index for 40 kHz: index_f1 = 40 + 1 = 41
 index_f0 = round(f0 * N_sym / fs) + 1;  
 index_f1 = round(f1 * N_sym / fs) + 1;  
 
-detected = zeros(1, numSymbols);  % 初始化检测结果
+detected = zeros(1, numSymbols);  % Initialize detection results
 
 for k = 1:numSymbols
-    symbol_signal = rx_matrix(:, k);   % 取出第 k 个符号信号
+    symbol_signal = rx_matrix(:, k);   % Extract the k-th symbol signal
     
-    % 计算 FFT
+    % Compute FFT
     X = fft(symbol_signal);
-    magX = abs(X);   % 求幅值谱
+    magX = abs(X);   % Compute magnitude spectrum
     
-    % 采用单个 bin 的能量进行判决
+    % Decision based on single bin energy
     amp0 = magX(index_f0);
     amp1 = magX(index_f1);
     
-    % 如果 20 kHz 分量能量更强，判决为比特 0，否则为比特 1
+    % If 20 kHz component is stronger, detect as bit 0; otherwise, detect as bit 1
     if amp0 > amp1
         detected(k) = 0;
     else
@@ -77,35 +76,35 @@ for k = 1:numSymbols
     end
 end
 
-%% 计算误码率（BER）
+%% Compute Bit Error Rate (BER)
 numErrors = sum(data ~= detected);
 BER = numErrors / numSymbols;
-fprintf('误码率 = %f\n', BER);
+fprintf('Bit Error Rate (BER) = %f\n', BER);
 
-%% 绘制结果
+%% Plot Results
 figure;
 subplot(4,1,1);
 plot(tx_signal);
-title('发送的 BFSK 信号');
-xlabel('采样点');
-ylabel('幅值');
+title('Transmitted BFSK Signal');
+xlabel('Sample Index');
+ylabel('Amplitude');
 
 subplot(4,1,2);
 plot(channel_signal);
-title('经过水声信道后的信号');
-xlabel('采样点');
-ylabel('幅值');
+title('Signal After Underwater Acoustic Channel');
+xlabel('Sample Index');
+ylabel('Amplitude');
 
 subplot(4,1,3);
 plot(rx_signal);
-title('加噪声后的接收信号');
-xlabel('采样点');
-ylabel('幅值');
+title('Received Signal with Added Noise');
+xlabel('Sample Index');
+ylabel('Amplitude');
 
 subplot(4,1,4);
 stem(data, 'filled'); hold on;
 stem(detected, 'r', 'filled');
-title('原始比特（蓝色）与检测比特（红色）');
-xlabel('符号序号');
-ylabel('比特值');
-legend('原始比特','检测比特');
+title('Original Bits (Blue) vs Detected Bits (Red)');
+xlabel('Symbol Index');
+ylabel('Bit Value');
+legend('Original Bits','Detected Bits');
